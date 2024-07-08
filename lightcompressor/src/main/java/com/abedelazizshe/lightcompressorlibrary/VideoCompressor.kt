@@ -110,8 +110,10 @@ object VideoCompressor : CoroutineScope by MainScope() {
 
             job = launch(Dispatchers.IO) {
 
-                val job = async { getMediaPath(context, uris[i]) }
-                val path = job.await()
+                val getMediaPathResultJob = async { getMediaPath(context, uris[i]) }
+                val getMediaPathResult = getMediaPathResultJob.await()
+                val path = getMediaPathResult.path
+                val isNeedToDeleteSourceFile = getMediaPathResult.isNeedDelete
 
                 val desFile = saveVideoFile(
                     context,
@@ -163,6 +165,14 @@ object VideoCompressor : CoroutineScope by MainScope() {
                     } else {
                         listener.onFailure(i, result.failureMessage ?: "An error has occurred!")
                     }
+                    //+ Andrey Ageenko
+                    if (isNeedToDeleteSourceFile) {
+                        val fileToDelete = File(path)
+                        if (fileToDelete.exists()) {
+                            fileToDelete.delete()
+                        }
+                    }
+                    //- Andrey Ageenko
                 }
             }
         }
@@ -346,7 +356,7 @@ object VideoCompressor : CoroutineScope by MainScope() {
         }
     }
 
-    private fun getMediaPath(context: Context, uri: Uri): String {
+    private fun getMediaPath(context: Context, uri: Uri): GetMediaPathResult {
 
         val resolver = context.contentResolver
         val projection = arrayOf(MediaStore.Video.Media.DATA)
@@ -356,8 +366,7 @@ object VideoCompressor : CoroutineScope by MainScope() {
             return if (cursor != null) {
                 val columnIndex = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
                 cursor.moveToFirst()
-                cursor.getString(columnIndex)
-
+                GetMediaPathResult(path = cursor.getString(columnIndex))
             } else throw Exception()
 
         } catch (e: Exception) {
@@ -377,7 +386,7 @@ object VideoCompressor : CoroutineScope by MainScope() {
                         )
                     }
                 }
-                return file.absolutePath
+                return GetMediaPathResult(path = file.absolutePath, isNeedDelete = true)
             }
         } finally {
             cursor?.close()
@@ -391,4 +400,10 @@ object VideoCompressor : CoroutineScope by MainScope() {
         if (!videoName.contains("mp4")) return "${videoName}.mp4"
         return videoName
     }
+
+    //Wrapper class to get information that the original file was copied and should be deleted after compression is complete
+    data class GetMediaPathResult(
+        val path: String,
+        val isNeedDelete: Boolean = false,
+    )
 }
