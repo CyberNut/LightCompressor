@@ -43,8 +43,8 @@ afterEvaluate {
             release(MavenPublication) {
                 from components.release
                 groupId = "com.github.AbedElazizShe"
-                artifactId = "LightCompressor-TempFileDeleteFixed"
-                version = '1.3.2'
+                artifactId = "LightCompressorFixed"
+                version = '1.3.3'
             }
         }
 
